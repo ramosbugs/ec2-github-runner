@@ -13,6 +13,7 @@ async function getRunners(label) {
     const foundRunners = _.filter(runners, { labels: [{ name: label }] });
     return foundRunners.length > 0 ? foundRunners : null;
   } catch (error) {
+    core.error(`Error listing runners: ${error.toString()}`)
     return null;
   }
 }
@@ -36,17 +37,19 @@ async function removeRunners() {
   const octokit = github.getOctokit(config.input.githubToken);
 
   // skip the runner removal process if the runner is not found
-  if (!runners) {
+  if (runners === null || runners.length === 0) {
     core.info(`GitHub self-hosted runner with label ${config.input.label} is not found, so the removal is skipped`);
     return;
   }
+  core.info(`Found GitHub self-hosted runners: ${JSON.stringify(runners)}`);
 
-  for(const runner in runners) {
+  for(const runner of runners) {
+    core.info(`Removing GitHub self-hosted runner ${JSON.stringify(runner)}`);
     try {
       await octokit.request('DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}', _.merge(config.githubContext, { runner_id: runner.id }));
       core.info(`GitHub self-hosted runner ${runner.name} is removed`);
     } catch (error) {
-      core.error('GitHub self-hosted runner removal error');
+      core.error(`GitHub self-hosted runner ${runner.name} removal error`);
       throw error;
     }
   }
