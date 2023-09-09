@@ -48,6 +48,7 @@ async function startEc2Instance(label, githubRegistrationToken) {
     SubnetId: config.input.subnetId,
     SecurityGroupIds: [config.input.securityGroupId],
     IamInstanceProfile: { Name: config.input.iamRoleName },
+    InstanceInitiatedShutdownBehavior: "terminate",
     TagSpecifications: config.tagSpecifications,
   };
 
