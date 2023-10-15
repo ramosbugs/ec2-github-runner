@@ -57,33 +57,35 @@ async function removeRunners() {
 
 async function waitForRunnerRegistered(label) {
   const timeoutMinutes = 5;
-  const retryIntervalSeconds = 10;
-  const quietPeriodSeconds = 30;
-  let waitSeconds = 0;
+  const retryIntervalSeconds = 5;
+  const quietPeriodSeconds = 10;
 
   core.info(`Waiting ${quietPeriodSeconds}s for the AWS EC2 instance to be registered in GitHub as a new self-hosted runner`);
   await new Promise(r => setTimeout(r, quietPeriodSeconds * 1000));
   core.info(`Checking every ${retryIntervalSeconds}s if the GitHub self-hosted runner is registered`);
 
   return new Promise((resolve, reject) => {
-    const interval = setInterval(async () => {
+    const startTime = new Date();
+    const check = async () => {
+      core.info('Checking...');
       const runners = await getRunners(label);
-
-      if (waitSeconds > timeoutMinutes * 60) {
-        core.error('GitHub self-hosted runner registration error');
-        clearInterval(interval);
-        reject(`A timeout of ${timeoutMinutes} minutes is exceeded. Your AWS EC2 instance was not able to register itself in GitHub as a new self-hosted runner.`);
-      }
 
       if (runners && runners.length > 0 && runners[0].status === 'online') {
         core.info(`GitHub self-hosted runner ${runners[0].name} is registered and ready to use`);
-        clearInterval(interval);
         resolve();
       } else {
-        waitSeconds += retryIntervalSeconds;
-        core.info('Checking...');
+        const now = new Date();
+        const elapsedMs = now - startTime;
+        if (elapsedMs > timeoutMinutes * 60 * 1000) {
+          core.error('GitHub self-hosted runner registration error');
+          reject(`A timeout of ${timeoutMinutes} minutes is exceeded. Your AWS EC2 instance was not able to register itself in GitHub as a new self-hosted runner.`);
+        } else {
+          return setTimeout(() => check(), retryIntervalSeconds * 1000);
+        }
       }
-    }, retryIntervalSeconds * 1000);
+    };
+
+    return check();
   });
 }
 
